@@ -1,6 +1,7 @@
 /**
  * AI Battleship Arena - Main Application
  * 4K Cinematic Spectator Experience with Three.js
+ * Enhanced with Twitch-style effects and performance optimizations
  */
 
 // ============= CONFIGURATION =============
@@ -12,7 +13,244 @@ const CONFIG = {
     gemini: 0x10b981,
     codex: 0xf97316,
   },
+  // Performance settings
+  targetFPS: 60,
+  enableAdaptiveQuality: true,
+  showFPSCounter: true,
+  // Visual settings
+  enablePostProcessing: true,
+  enableParticles: true,
+  particlePoolSize: 200,
 };
+
+// ============= PERFORMANCE MONITOR =============
+class PerformanceMonitor {
+  constructor() {
+    this.fps = 60;
+    this.frameCount = 0;
+    this.lastTime = performance.now();
+    this.fpsHistory = [];
+    this.qualityLevel = 'high'; // high, medium, low
+    this.createFPSDisplay();
+  }
+
+  createFPSDisplay() {
+    if (!CONFIG.showFPSCounter) return;
+    this.fpsElement = document.createElement('div');
+    this.fpsElement.id = 'fps-counter';
+    this.fpsElement.style.cssText = `
+      position: fixed;
+      bottom: 70px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #00ff88;
+      font-family: 'Orbitron', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      z-index: 10000;
+      border: 1px solid rgba(0,255,136,0.3);
+    `;
+    document.body.appendChild(this.fpsElement);
+  }
+
+  update() {
+    this.frameCount++;
+    const now = performance.now();
+    const delta = now - this.lastTime;
+
+    if (delta >= 1000) {
+      this.fps = Math.round((this.frameCount * 1000) / delta);
+      this.frameCount = 0;
+      this.lastTime = now;
+      this.fpsHistory.push(this.fps);
+      if (this.fpsHistory.length > 60) this.fpsHistory.shift();
+
+      if (this.fpsElement) {
+        const avgFps = Math.round(this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length);
+        const color = avgFps >= 50 ? '#00ff88' : avgFps >= 30 ? '#ffaa00' : '#ff4444';
+        this.fpsElement.style.color = color;
+        this.fpsElement.textContent = `FPS: ${this.fps} | AVG: ${avgFps} | ${this.qualityLevel.toUpperCase()}`;
+      }
+
+      // Adaptive quality
+      if (CONFIG.enableAdaptiveQuality) {
+        this.adjustQuality();
+      }
+    }
+  }
+
+  adjustQuality() {
+    const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
+    const newQuality = avgFps < 25 ? 'low' : avgFps < 40 ? 'medium' : 'high';
+    if (newQuality !== this.qualityLevel) {
+      this.qualityLevel = newQuality;
+      this.applyQualitySettings();
+    }
+  }
+
+  applyQualitySettings() {
+    // Quality settings will be applied to scenes
+    window.dispatchEvent(new CustomEvent('qualityChange', { detail: this.qualityLevel }));
+  }
+}
+
+// ============= TWITCH HYPE SYSTEM =============
+class HypeSystem {
+  constructor() {
+    this.hypeLevel = 0;
+    this.maxHype = 100;
+    this.consecutiveHits = 0;
+    this.lastEventTime = 0;
+    this.events = [];
+    this.createHypeMeter();
+  }
+
+  createHypeMeter() {
+    const container = document.createElement('div');
+    container.id = 'hype-meter';
+    container.innerHTML = `
+      <div class="hype-label">HYPE</div>
+      <div class="hype-bar-container">
+        <div class="hype-bar-fill"></div>
+        <div class="hype-bar-glow"></div>
+      </div>
+      <div class="hype-value">0%</div>
+    `;
+    document.body.appendChild(container);
+    this.meterElement = container;
+    this.fillElement = container.querySelector('.hype-bar-fill');
+    this.valueElement = container.querySelector('.hype-value');
+  }
+
+  addHype(amount, reason) {
+    const now = Date.now();
+    // Combo multiplier for rapid events
+    const timeSinceLastEvent = now - this.lastEventTime;
+    const comboMultiplier = timeSinceLastEvent < 3000 ? 1.5 : 1;
+
+    this.hypeLevel = Math.min(this.maxHype, this.hypeLevel + (amount * comboMultiplier));
+    this.lastEventTime = now;
+    this.events.push({ time: now, reason, amount });
+
+    this.updateDisplay();
+
+    // Check for hype milestones
+    if (this.hypeLevel >= 100) {
+      this.triggerMaxHype();
+    } else if (this.hypeLevel >= 75) {
+      this.triggerHighHype();
+    }
+  }
+
+  updateDisplay() {
+    if (!this.fillElement) return;
+    const percent = Math.round(this.hypeLevel);
+    this.fillElement.style.width = `${percent}%`;
+    this.valueElement.textContent = `${percent}%`;
+
+    // Color based on level
+    if (this.hypeLevel >= 75) {
+      this.fillElement.style.background = 'linear-gradient(90deg, #ff4444, #ff8800)';
+      this.meterElement.classList.add('hype-high');
+    } else if (this.hypeLevel >= 50) {
+      this.fillElement.style.background = 'linear-gradient(90deg, #ff8800, #ffdd00)';
+      this.meterElement.classList.remove('hype-high');
+    } else {
+      this.fillElement.style.background = 'linear-gradient(90deg, #00d4ff, #8b5cf6)';
+      this.meterElement.classList.remove('hype-high');
+    }
+  }
+
+  triggerHighHype() {
+    showTwitchAlert('🔥 HYPE RISING!', 'hype');
+  }
+
+  triggerMaxHype() {
+    showTwitchAlert('💥 MAXIMUM HYPE! 💥', 'max-hype');
+    // Visual effect
+    document.body.classList.add('max-hype-mode');
+    setTimeout(() => document.body.classList.remove('max-hype-mode'), 3000);
+  }
+
+  decay() {
+    // Slowly decay hype over time
+    if (this.hypeLevel > 0) {
+      this.hypeLevel = Math.max(0, this.hypeLevel - 0.1);
+      this.updateDisplay();
+    }
+  }
+
+  reset() {
+    this.hypeLevel = 0;
+    this.consecutiveHits = 0;
+    this.events = [];
+    this.updateDisplay();
+  }
+}
+
+// ============= TWITCH ALERTS =============
+function showTwitchAlert(text, type = 'default') {
+  const alert = document.createElement('div');
+  alert.className = `twitch-alert twitch-alert-${type}`;
+  alert.innerHTML = `
+    <div class="alert-content">
+      <span class="alert-text">${text}</span>
+    </div>
+  `;
+  document.body.appendChild(alert);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    alert.classList.add('show');
+  });
+
+  // Remove after animation
+  setTimeout(() => {
+    alert.classList.remove('show');
+    setTimeout(() => alert.remove(), 500);
+  }, 2500);
+}
+
+function showFirstBlood(player) {
+  const overlay = document.createElement('div');
+  overlay.className = 'first-blood-overlay';
+  overlay.innerHTML = `
+    <div class="first-blood-content">
+      <div class="first-blood-icon">🩸</div>
+      <div class="first-blood-text">FIRST BLOOD</div>
+      <div class="first-blood-player">${player.toUpperCase()}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  AudioManager.play('explosion');
+  cameraShake(2);
+  screenFlash('rgba(255, 0, 0, 0.3)');
+
+  setTimeout(() => overlay.remove(), 3000);
+}
+
+function showMultiKill(count, player) {
+  const labels = ['', '', 'DOUBLE KILL', 'TRIPLE KILL', 'QUAD KILL', 'PENTA KILL', 'LEGENDARY'];
+  const label = labels[Math.min(count, 6)] || `${count}x KILL STREAK`;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'multi-kill-overlay';
+  overlay.innerHTML = `
+    <div class="multi-kill-content">
+      <div class="multi-kill-count">${count}</div>
+      <div class="multi-kill-text">${label}</div>
+      <div class="multi-kill-player">${player.toUpperCase()}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  cameraShake(count);
+  screenFlash('rgba(255, 200, 0, 0.3)');
+
+  setTimeout(() => overlay.remove(), 2500);
+}
 
 // ============= GLOBAL STATE =============
 let socket = null;
@@ -23,11 +261,18 @@ let matchStartTime = null;
 let timerInterval = null;
 let comboCount = 0;
 let lastHitPlayer = null;
+let performanceMonitor = null;
+let hypeSystem = null;
+let isFirstHit = true;
+let killStreak = { player: null, count: 0 };
+let totalHits = { claude: 0, gemini: 0, codex: 0 };
+let shipsSunk = { claude: 0, gemini: 0, codex: 0 };
 
 // ============= AUDIO MANAGER =============
 const AudioManager = {
   sounds: {},
   initialized: false,
+  muted: false,
 
   init() {
     if (this.initialized) return;
@@ -49,12 +294,31 @@ const AudioManager = {
       src: ['https://cdn.freesound.org/previews/389/389815_5229247-lq.mp3'],
       volume: 0.2
     });
+    // Additional dramatic sounds
+    this.sounds.victory = new Howl({
+      src: ['https://cdn.freesound.org/previews/270/270402_5123851-lq.mp3'],
+      volume: 0.7
+    });
+    this.sounds.alert = new Howl({
+      src: ['https://cdn.freesound.org/previews/350/350863_4502513-lq.mp3'],
+      volume: 0.4
+    });
+    this.sounds.combo = new Howl({
+      src: ['https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3'],
+      volume: 0.5
+    });
   },
 
   play(sound) {
+    if (this.muted) return;
     if (this.sounds[sound]) {
       this.sounds[sound].play();
     }
+  },
+
+  toggle() {
+    this.muted = !this.muted;
+    return this.muted;
   }
 };
 
@@ -1078,6 +1342,11 @@ class BattleScene {
 
     const time = this.clock.getElapsedTime();
 
+    // Update performance monitor
+    if (performanceMonitor) {
+      performanceMonitor.update();
+    }
+
     // Update ocean
     if (this.ocean) {
       this.ocean.material.uniforms.uTime.value = time;
@@ -1095,9 +1364,12 @@ class BattleScene {
       this.particles.rotation.y = time * 0.02;
     }
 
-    // Animate point lights
+    // Animate point lights for dramatic pulsing
     if (this.pointLight1) {
       this.pointLight1.intensity = 0.8 + Math.sin(time * 2) * 0.2;
+    }
+    if (this.pointLight2) {
+      this.pointLight2.intensity = 0.4 + Math.sin(time * 1.5 + 1) * 0.15;
     }
 
     // Cleanup old effects
@@ -1134,9 +1406,12 @@ function initSocket() {
 
   socket.on('matchStarting', (data) => {
     console.log('Match starting:', data);
+    resetMatchState();
     updatePlayerUI(data.player1, data.player2);
     startTimer();
     showEndMatchButton();
+    showTwitchAlert('⚔️ BATTLE BEGINS! ⚔️', 'battle-start');
+    AudioManager.play('alert');
   });
 
   socket.on('matchPhase', (data) => {
@@ -1174,9 +1449,14 @@ function initSocket() {
     } else {
       p2Info.classList.add('active-turn');
     }
+
+    // Show thinking indicator
+    showThinkingIndicator(data.player, data.thinking);
   });
 
   socket.on('turnEnd', (data) => {
+    // Hide thinking indicator
+    hideThinkingIndicator();
     updateLastMove(data);
 
     const scene = data.player === 'claude' ? rightScene : leftScene;
@@ -1193,6 +1473,24 @@ function initSocket() {
       showDamageNumbers(data.coordinate, 'SUNK', true);
       updateCombo(data.player, true);
       AudioManager.play('explosion');
+
+      // Track ship sunk for multi-kill
+      shipsSunk[data.player] = (shipsSunk[data.player] || 0) + 1;
+      if (killStreak.player === data.player) {
+        killStreak.count++;
+        if (killStreak.count >= 2) {
+          showMultiKill(killStreak.count, data.player);
+          AudioManager.play('combo');
+        }
+      } else {
+        killStreak = { player: data.player, count: 1 };
+      }
+
+      // Hype system - big boost for sunk
+      if (hypeSystem) {
+        hypeSystem.addHype(25, 'ship_sunk');
+      }
+
     } else if (data.result === 'hit') {
       scene.markHit(data.coordObj);
       if (isoScene) isoScene.markHit(data.coordObj);
@@ -1203,11 +1501,33 @@ function initSocket() {
       showDamageNumbers(data.coordinate, 1, false);
       updateCombo(data.player, true);
       AudioManager.play('hit');
+
+      // Track total hits
+      totalHits[data.player] = (totalHits[data.player] || 0) + 1;
+
+      // First blood check
+      if (isFirstHit) {
+        isFirstHit = false;
+        showFirstBlood(data.player);
+        if (hypeSystem) hypeSystem.addHype(20, 'first_blood');
+      }
+
+      // Hype system - moderate boost for hit
+      if (hypeSystem) {
+        hypeSystem.addHype(10, 'hit');
+      }
+
     } else {
       scene.markMiss(data.coordObj);
       if (isoScene) isoScene.markMiss(data.coordObj);
       updateCombo(data.player, false);
       AudioManager.play('miss');
+
+      // Reset kill streak on miss
+      if (killStreak.player === data.player) {
+        killStreak = { player: null, count: 0 };
+      }
+
       // Only show miss text occasionally to not spam
       if (Math.random() < 0.3) {
         showActionOverlay('MISS', 'miss');
@@ -1425,6 +1745,33 @@ function showDamageNumbers(coord, damage, isCritical) {
   setTimeout(() => {
     dmgEl.remove();
   }, 1000);
+}
+
+function showThinkingIndicator(player, message) {
+  // Remove any existing thinking indicator
+  hideThinkingIndicator();
+
+  const indicator = document.createElement('div');
+  indicator.id = 'thinking-indicator';
+  indicator.className = 'thinking-indicator';
+  indicator.innerHTML = `
+    <span class="thinking-player ${player}">${player.toUpperCase()}</span>
+    <div class="thinking-dots">
+      <div class="thinking-dot"></div>
+      <div class="thinking-dot"></div>
+      <div class="thinking-dot"></div>
+    </div>
+    <span class="thinking-text">${message || 'Calculating...'}</span>
+  `;
+  document.body.appendChild(indicator);
+}
+
+function hideThinkingIndicator() {
+  const indicator = document.getElementById('thinking-indicator');
+  if (indicator) {
+    indicator.style.animation = 'thinkingSlideOut 0.3s ease-out forwards';
+    setTimeout(() => indicator.remove(), 300);
+  }
 }
 
 // ============= UI FUNCTIONS =============
@@ -1682,6 +2029,16 @@ function setupEventHandlers() {
   document.getElementById('view-iso-btn').addEventListener('click', () => {
     switchView('iso');
   });
+
+  // Sound toggle handler
+  const soundToggle = document.getElementById('sound-toggle');
+  if (soundToggle) {
+    soundToggle.addEventListener('click', () => {
+      const muted = AudioManager.toggle();
+      soundToggle.textContent = muted ? '🔇' : '🔊';
+      soundToggle.classList.toggle('muted', muted);
+    });
+  }
 }
 
 // ============= VIEW SWITCHING =============
@@ -1716,6 +2073,14 @@ async function init() {
   const loadingScreen = document.getElementById('loading-screen');
   const loadingProgress = document.querySelector('.loading-progress');
   const loadingStatus = document.querySelector('.loading-status');
+
+  loadingStatus.textContent = 'Initializing performance monitor...';
+  loadingProgress.style.width = '10%';
+  performanceMonitor = new PerformanceMonitor();
+
+  loadingStatus.textContent = 'Initializing hype system...';
+  loadingProgress.style.width = '15%';
+  hypeSystem = new HypeSystem();
 
   loadingStatus.textContent = 'Initializing audio...';
   loadingProgress.style.width = '20%';
@@ -1761,7 +2126,23 @@ async function init() {
   loadingProgress.style.width = '100%';
   setupEventHandlers();
 
+  // Start hype decay loop
+  setInterval(() => {
+    if (hypeSystem) hypeSystem.decay();
+  }, 100);
+
   setTimeout(() => loadingScreen.classList.add('hidden'), 1000);
+}
+
+// Reset match state
+function resetMatchState() {
+  isFirstHit = true;
+  killStreak = { player: null, count: 0 };
+  totalHits = { claude: 0, gemini: 0, codex: 0 };
+  shipsSunk = { claude: 0, gemini: 0, codex: 0 };
+  comboCount = 0;
+  lastHitPlayer = null;
+  if (hypeSystem) hypeSystem.reset();
 }
 
 init();
