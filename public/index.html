@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Battleship Arena - Epic Naval Warfare</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Three.js and dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
+  <!-- GSAP for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+
+  <!-- Howler.js for audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h1 class="loading-title">AI BATTLESHIP ARENA</h1>
+      <div class="loading-subtitle">PREPARING NAVAL WARFARE</div>
+      <div class="loading-bar">
+        <div class="loading-progress"></div>
+      </div>
+      <div class="loading-status">Loading assets...</div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div id="game-container">
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <span class="spectator-count"><span id="spectator-num">0</span> watching</span>
+      </div>
+      <div class="header-center">
+        <h1 class="title">AI BATTLESHIP ARENA</h1>
+      </div>
+      <div class="header-right">
+        <div class="view-toggle">
+          <button id="view-3d-btn" class="btn btn-toggle active" title="3D View">3D</button>
+          <button id="view-iso-btn" class="btn btn-toggle" title="Isometric View">ISO</button>
+        </div>
+        <button id="start-demo-btn" class="btn btn-primary">START DEMO</button>
+        <button id="start-match-btn" class="btn btn-secondary">START MATCH</button>
+        <button id="end-match-btn" class="btn btn-danger hidden">END MATCH</button>
+        <button id="restart-server-btn" class="btn btn-warning" title="Restart Server">⟳</button>
+      </div>
+    </header>
+
+    <!-- Player Info Bar -->
+    <div id="player-bar">
+      <div class="player-info player1">
+        <div class="player-avatar">
+          <div class="avatar-glow"></div>
+          <span class="avatar-icon">C</span>
+        </div>
+        <div class="player-details">
+          <div class="player-name" id="p1-name">CLAUDE</div>
+          <div class="player-model">claude-sonnet</div>
+        </div>
+        <div class="ships-status">
+          <div class="ships-bar">
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+          </div>
+          <span class="ships-count" id="p1-ships">5/5</span>
+        </div>
+      </div>
+
+      <div class="vs-badge">
+        <span>VS</span>
+      </div>
+
+      <div class="player-info player2">
+        <div class="ships-status">
+          <span class="ships-count" id="p2-ships">5/5</span>
+          <div class="ships-bar">
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+            <div class="ship-pip active"></div>
+          </div>
+        </div>
+        <div class="player-details">
+          <div class="player-name" id="p2-name">GEMINI</div>
+          <div class="player-model">gemini-2.5-pro</div>
+        </div>
+        <div class="player-avatar player2-avatar">
+          <div class="avatar-glow"></div>
+          <span class="avatar-icon">G</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Battle Arena -->
+    <div id="battle-arena">
+      <!-- 3D View -->
+      <div id="view-3d" class="battle-view active">
+        <div class="arena-side left">
+          <div class="arena-label">
+            <span class="label-icon">⚓</span>
+            <span id="p1-label">CLAUDE'S FLEET</span>
+          </div>
+          <canvas id="canvas-left"></canvas>
+          <div class="grid-overlay" id="grid-left"></div>
+        </div>
+
+        <div class="arena-divider">
+          <div class="divider-line"></div>
+          <div class="divider-emblem">⚔</div>
+          <div class="divider-line"></div>
+        </div>
+
+        <div class="arena-side right">
+          <div class="arena-label">
+            <span id="p2-label">GEMINI'S FLEET</span>
+            <span class="label-icon">⚓</span>
+          </div>
+          <canvas id="canvas-right"></canvas>
+          <div class="grid-overlay" id="grid-right"></div>
+        </div>
+      </div>
+
+      <!-- Isometric View -->
+      <div id="view-iso" class="battle-view">
+        <div class="arena-side left">
+          <div class="arena-label">
+            <span class="label-icon">⚓</span>
+            <span class="p1-label-iso">CLAUDE'S FLEET</span>
+          </div>
+          <div id="iso-canvas-left" class="iso-canvas"></div>
+        </div>
+
+        <div class="arena-divider">
+          <div class="divider-line"></div>
+          <div class="divider-emblem">⚔</div>
+          <div class="divider-line"></div>
+        </div>
+
+        <div class="arena-side right">
+          <div class="arena-label">
+            <span class="p2-label-iso">GEMINI'S FLEET</span>
+            <span class="label-icon">⚓</span>
+          </div>
+          <div id="iso-canvas-right" class="iso-canvas"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trash Talk Panel -->
+    <div id="trash-talk-panel">
+      <div class="trash-talk-container" id="trash-talk-messages">
+        <!-- Messages appear here -->
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <div class="status-left">
+        <span class="turn-badge">TURN <span id="turn-number">0</span></span>
+        <span class="phase-badge" id="phase-badge">WAITING</span>
+      </div>
+      <div class="status-center">
+        <div class="last-move" id="last-move">
+          <span class="move-waiting">Waiting for battle to begin...</span>
+        </div>
+      </div>
+      <div class="status-right">
+        <span class="timer" id="match-timer">00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Overlay for dramatic moments -->
+  <div id="action-overlay" class="hidden">
+    <div class="action-text" id="action-text"></div>
+  </div>
+
+  <!-- Kill Feed -->
+  <div id="kill-feed"></div>
+
+  <!-- Victory Overlay -->
+  <div id="victory-overlay" class="hidden">
+    <div class="victory-content">
+      <div class="victory-title">VICTORY</div>
+      <div class="victory-winner" id="winner-name">CLAUDE</div>
+      <div class="victory-stats">
+        <div class="stat">
+          <span class="stat-value" id="final-turns">0</span>
+          <span class="stat-label">TURNS</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="final-time">00:00</span>
+          <span class="stat-label">DURATION</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-large" id="play-again-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- Match Setup Modal -->
+  <div id="match-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>SELECT PLAYERS</h2>
+      <div class="player-select">
+        <div class="select-group">
+          <label>PLAYER 1</label>
+          <select id="select-p1">
+            <option value="claude">Claude</option>
+            <option value="gemini">Gemini</option>
+            <option value="codex">Codex</option>
+          </select>
+        </div>
+        <div class="vs-icon">VS</div>
+        <div class="select-group">
+          <label>PLAYER 2</label>
+          <select id="select-p2">
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+            <option value="codex">Codex</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" id="cancel-match">CANCEL</button>
+        <button class="btn btn-primary" id="confirm-match">START BATTLE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Isometric Renderer -->
+  <script src="js/isometric.js"></script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
